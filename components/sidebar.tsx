@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   Users,
@@ -19,6 +19,8 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useToast } from "@/hooks/use-toast"
 
 type NavItem = {
   title: string
@@ -94,12 +96,56 @@ interface SidebarProps {
 
 export function Sidebar({ userRole, userName }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { toast } = useToast()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const supabase = createClientComponentClient()
 
   // Close mobile menu when path changes
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [pathname])
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return // Prevent multiple clicks
+    
+    try {
+      setIsSigningOut(true)
+      
+      // Show loading toast
+      toast({
+        title: "Signing out",
+        description: "Please wait...",
+      })
+
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        throw error
+      }
+
+      // Wait a bit to ensure session is cleared
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Show success message
+      toast({
+        title: "Success",
+        description: "You have been signed out successfully.",
+      })
+
+      // Use router.push instead of window.location for smoother transition
+      router.push('/login')
+    } catch (error: any) {
+      console.error('Sign out error:', error)
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred while signing out",
+        variant: "destructive",
+      })
+      setIsSigningOut(false) // Only reset if there's an error
+    }
+  }
 
   const navItems = userRole === "admin" ? adminNavItems : employeeNavItems
 
@@ -158,15 +204,11 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
             <Button
               variant="outline"
               className="w-full flex items-center justify-center"
-              onClick={() => {
-                // Clear user data from localStorage
-                localStorage.removeItem("wms_user")
-                // Redirect to login page
-                window.location.href = "/login"
-              }}
+              onClick={handleSignOut}
+              disabled={isSigningOut}
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+              {isSigningOut ? "Signing out..." : "Sign Out"}
             </Button>
           </div>
         </div>

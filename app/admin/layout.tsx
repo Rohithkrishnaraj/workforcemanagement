@@ -1,40 +1,42 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
+  const [userName, setUserName] = useState("")
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
-    // Check if user is authenticated as admin
-    const checkAuth = () => {
-      const user = localStorage.getItem("wms_user")
-
-      if (!user) {
-        router.push("/login")
-        return
-      }
-
+    const getProfile = async () => {
       try {
-        const userData = JSON.parse(user)
-        if (userData.role !== "admin") {
-          router.push("/login")
-          return
-        }
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (user) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', user.id)
+            .single()
 
-        setIsLoading(false)
+          if (data) {
+            setUserName(data.first_name 
+              ? `${data.first_name} ${data.last_name || ''}`
+              : user.email || 'Admin User')
+          }
+        }
       } catch (error) {
-        router.push("/login")
+        console.error('Profile fetch error:', error)
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    checkAuth()
-  }, [router])
+    getProfile()
+  }, [supabase])
 
   if (isLoading) {
     return (
@@ -46,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Sidebar userRole="admin" userName="Admin User" />
+      <Sidebar userRole="admin" userName={userName} />
       <div className="lg:pl-64">
         <main>{children}</main>
       </div>
