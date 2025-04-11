@@ -21,19 +21,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useToast } from "@/hooks/use-toast"
-import type { Database } from '@/types/supabase'
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   first_name: z.string().min(2, "First name must be at least 2 characters"),
   last_name: z.string().min(2, "Last name must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  department: z.string().min(1, "Please select a department"),
-  role: z.string().min(1, "Please select a role"),
-  status: z.string().min(1, "Please select a status"),
+  phone: z.string().optional(),
+  department: z.string().optional(),
+  position: z.string().optional(),
+  status: z.enum(['active', 'inactive', 'on_leave']).default('active'),
+  address: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -46,7 +45,6 @@ interface EmployeeFormProps {
 export function EmployeeForm({ onSuccess, onCancel }: EmployeeFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
-  const supabase = createClientComponentClient<Database>()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -57,8 +55,9 @@ export function EmployeeForm({ onSuccess, onCancel }: EmployeeFormProps) {
       last_name: "",
       phone: "",
       department: "",
-      role: "",
+      position: "",
       status: "active",
+      address: "",
     },
   })
 
@@ -66,50 +65,19 @@ export function EmployeeForm({ onSuccess, onCancel }: EmployeeFormProps) {
     try {
       setIsLoading(true)
 
-      // 1. Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-        options: {
-          data: {
-            first_name: values.first_name,
-            last_name: values.last_name,
-            phone: values.phone,
-          },
+      const response = await fetch('/api/employees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify(values),
       })
 
-      if (authError) throw authError
-      if (!authData.user) throw new Error("Failed to create auth user")
+      const data = await response.json()
 
-      // 2. Create employee record
-      const { error: employeeError } = await supabase
-        .from('employees')
-        .insert({
-          id: authData.user.id,
-          first_name: values.first_name,
-          last_name: values.last_name,
-          email: values.email,
-          phone: values.phone,
-          department: values.department,
-          role: values.role,
-          status: values.status,
-        })
-
-      if (employeeError) throw employeeError
-
-      // 3. Create profile record
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          first_name: values.first_name,
-          last_name: values.last_name,
-          email: values.email,
-          phone: values.phone,
-        })
-
-      if (profileError) throw profileError
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create employee')
+      }
 
       toast({
         title: "Success",
@@ -230,24 +198,13 @@ export function EmployeeForm({ onSuccess, onCancel }: EmployeeFormProps) {
 
         <FormField
           control={form.control}
-          name="role"
+          name="position"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Role</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="developer">Developer</SelectItem>
-                  <SelectItem value="designer">Designer</SelectItem>
-                  <SelectItem value="analyst">Analyst</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
-                </SelectContent>
-              </Select>
+              <FormLabel>Position</FormLabel>
+              <FormControl>
+                <Input placeholder="Software Engineer" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -271,6 +228,20 @@ export function EmployeeForm({ onSuccess, onCancel }: EmployeeFormProps) {
                   <SelectItem value="on_leave">On Leave</SelectItem>
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="address"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address</FormLabel>
+              <FormControl>
+                <Input placeholder="123 Main St, City, Country" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

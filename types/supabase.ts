@@ -18,16 +18,44 @@ export interface Database {
           phone: string
           department: string
           role: string
-          status: 'active' | 'inactive' | 'on-leave'
+          status: "active" | "inactive" | "on-leave"
           join_date: string
-          avatar_url?: string
-          address?: string
+          avatar_url: string | null
+          address: string | null
           todays_attendance?: 'present' | 'absent' | 'late'
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['employees']['Row'], 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['employees']['Insert']>
+        Insert: Omit<Database["public"]["Tables"]["employees"]["Row"], "id" | "created_at" | "updated_at">
+        Update: Partial<Database["public"]["Tables"]["employees"]["Insert"]>
+      }
+      users: {
+        Row: {
+          id: string
+          first_name: string
+          last_name: string
+          email: string
+          avatar_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["users"]["Row"], "id" | "created_at" | "updated_at">
+        Update: Partial<Database["public"]["Tables"]["users"]["Insert"]>
+      }
+      tasks: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          status: "pending" | "in-progress" | "completed" | "cancelled"
+          priority: "low" | "medium" | "high" | "urgent"
+          due_date: string
+          assigned_to: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["tasks"]["Row"], "id" | "created_at" | "updated_at">
+        Update: Partial<Database["public"]["Tables"]["tasks"]["Insert"]>
       }
     }
     Views: {
